@@ -262,23 +262,25 @@ export const login = async (req: Request, res: Response) => {
 export const updateProfilePicture = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { bio } = req.body;
+    const bio = req.body.bio;
 
     // Verify authorization
     if (!req.user || req.user._id.toString() !== id) {
+      if (req.file?.path) fs.unlinkSync(req.file.path);
       res.status(403).json({ success: false, message: "Not authorized" });
       return;
     }
 
     const user = await User.findById(id);
     if (!user) {
+      if (req.file?.path) fs.unlinkSync(req.file.path);
       res.status(404).json({ success: false, message: "User not found" });
       return;
     }
 
     const updates: any = {};
 
-    // Handle bio update if provided
+    // Handle bio update if provided (even if empty string)
     if (bio !== undefined) {
       updates.bio = bio;
     }
@@ -312,15 +314,7 @@ export const updateProfilePicture = async (req: Request, res: Response) => {
       return;
     }
 
-    // Only update if there are changes
-    if (Object.keys(updates).length === 0) {
-      res.status(400).json({
-        success: false,
-        message: "No updates provided",
-      });
-      return;
-    }
-
+    // Update user if there are changes
     const updatedUser = await User.findByIdAndUpdate(id, updates, {
       new: true,
     }).select("-password");
@@ -331,7 +325,7 @@ export const updateProfilePicture = async (req: Request, res: Response) => {
         _id: updatedUser!._id,
         username: updatedUser!.username,
         email: updatedUser!.email,
-        profilePicture: updatedUser!.profilePicture,
+        profilePicture: updatedUser!.profilePicture || user.profilePicture,
         bio: updatedUser!.bio,
         createdAt: updatedUser!.createdAt,
       },
@@ -349,6 +343,6 @@ export const updateProfilePicture = async (req: Request, res: Response) => {
       success: false,
       message: error instanceof Error ? error.message : "Profile update failed",
     });
-    return;
   }
+  return;
 };

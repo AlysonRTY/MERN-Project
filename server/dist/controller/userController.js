@@ -242,22 +242,26 @@ const login = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
 });
 exports.login = login;
 const updateProfilePicture = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
+    var _a, _b, _c, _d;
     try {
         const { id } = req.params;
-        const { bio } = req.body;
+        const bio = req.body.bio;
         // Verify authorization
         if (!req.user || req.user._id.toString() !== id) {
+            if ((_a = req.file) === null || _a === void 0 ? void 0 : _a.path)
+                fs_1.default.unlinkSync(req.file.path);
             res.status(403).json({ success: false, message: "Not authorized" });
             return;
         }
         const user = yield usersModel_1.default.findById(id);
         if (!user) {
+            if ((_b = req.file) === null || _b === void 0 ? void 0 : _b.path)
+                fs_1.default.unlinkSync(req.file.path);
             res.status(404).json({ success: false, message: "User not found" });
             return;
         }
         const updates = {};
-        // Handle bio update if provided
+        // Handle bio update if provided (even if empty string)
         if (bio !== undefined) {
             updates.bio = bio;
         }
@@ -276,7 +280,7 @@ const updateProfilePicture = (req, res) => __awaiter(void 0, void 0, void 0, fun
             }
             catch (uploadError) {
                 console.error("Cloudinary upload error:", uploadError);
-                if ((_a = req.file) === null || _a === void 0 ? void 0 : _a.path)
+                if ((_c = req.file) === null || _c === void 0 ? void 0 : _c.path)
                     fs_1.default.unlinkSync(req.file.path);
                 res.status(500).json({
                     success: false,
@@ -285,14 +289,7 @@ const updateProfilePicture = (req, res) => __awaiter(void 0, void 0, void 0, fun
             }
             return;
         }
-        // Only update if there are changes
-        if (Object.keys(updates).length === 0) {
-            res.status(400).json({
-                success: false,
-                message: "No updates provided",
-            });
-            return;
-        }
+        // Update user if there are changes
         const updatedUser = yield usersModel_1.default.findByIdAndUpdate(id, updates, {
             new: true,
         }).select("-password");
@@ -302,7 +299,7 @@ const updateProfilePicture = (req, res) => __awaiter(void 0, void 0, void 0, fun
                 _id: updatedUser._id,
                 username: updatedUser.username,
                 email: updatedUser.email,
-                profilePicture: updatedUser.profilePicture,
+                profilePicture: updatedUser.profilePicture || user.profilePicture,
                 bio: updatedUser.bio,
                 createdAt: updatedUser.createdAt,
             },
@@ -312,14 +309,14 @@ const updateProfilePicture = (req, res) => __awaiter(void 0, void 0, void 0, fun
     catch (error) {
         console.error("Profile update error:", error);
         // Clean up temp file if exists
-        if (((_b = req.file) === null || _b === void 0 ? void 0 : _b.path) && fs_1.default.existsSync(req.file.path)) {
+        if (((_d = req.file) === null || _d === void 0 ? void 0 : _d.path) && fs_1.default.existsSync(req.file.path)) {
             fs_1.default.unlinkSync(req.file.path);
         }
         res.status(500).json({
             success: false,
             message: error instanceof Error ? error.message : "Profile update failed",
         });
-        return;
     }
+    return;
 });
 exports.updateProfilePicture = updateProfilePicture;
