@@ -1,51 +1,58 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
-import duckRouter from "./routes/ducks";
 import mongoose from "mongoose";
-import userRouter from "./routes/user";
 import bodyParser from "body-parser";
 import cloudinaryConfig from "./config/cloudinaryConfiguration";
-import commentRouter from "./routes/comments";
 
 dotenv.config();
+
+// Initialize Cloudinary first
 cloudinaryConfig();
 
-const DBConnection = () => {
-  if (process.env.MONGO_URI) {
-    mongoose
-      .connect(process.env.MONGO_URI)
-      .then(() => console.log("Connection to Mongo DB established"))
-      .catch((err) => console.log(err));
-  } else {
-    throw new Error("you forgot the MongoDB connection string");
+const DBConnection = async () => {
+  if (!process.env.MONGO_URI) {
+    throw new Error("Missing MongoDB connection string");
+  }
+
+  try {
+    await mongoose.connect(process.env.MONGO_URI, {
+      serverSelectionTimeoutMS: 30000,
+      socketTimeoutMS: 45000,
+    });
+    console.log("Connection to MongoDB established");
+  } catch (err) {
+    console.error("MongoDB connection error:", err);
+    process.exit(1);
   }
 };
-DBConnection();
-const app = express();
 
-// middlewares
-app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use(express.json());
-app.use(
-  express.urlencoded({
-    extended: true,
-  })
-);
+(async () => {
+  await DBConnection();
+  const app = express();
 
-// routes //
-app.use("/api/ducks", duckRouter);
-app.use("/api/user", userRouter);
-app.use("/api/comments", commentRouter);
+  // Middlewares
+  app.use(cors());
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
+  app.use(bodyParser.json());
 
-// app.get("/", (req, res) => {
-//   res.send("server is running");
-// });
-// app.get("/api", duckRouter);
-const port = process.env.PORT || 8000;
+  // Routes
+  app.use("/api/ducks", require("./routes/ducks"));
+  app.use("/api/user", require("./routes/user"));
+  app.use("/api/comments", require("./routes/comments"));
 
-app.listen(port, () => {
-  console.log("Server is running on http://localhost:" + port);
-});
+  // Error handling middleware
+  app.use((err: any, req: any, res: any, next: any) => {
+    console.error("Server error:", err);
+    res.status(500).json({
+      success: false,
+      message: err.message || "Internal server error",
+    });
+  });
+
+  const port = process.env.PORT || 8000;
+  app.listen(port, () => {
+    console.log(`Server running on http://localhost:${port}`);
+  });
+})();

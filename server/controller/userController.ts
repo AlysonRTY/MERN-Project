@@ -261,55 +261,31 @@ export const login = async (req: Request, res: Response) => {
 
 export const updateProfilePicture = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
+    if (!req.file) {
+      res.status(400).json({
+        success: false,
+        message: "No image file provided",
+      });
+      return;
+    }
 
-    // Verify the user is updating their own profile
+    const { id } = req.params;
+    const { bio } = req.body;
+
+    // Verify user authorization
     if (!req.user || req.user._id.toString() !== id) {
-      res.status(403).json({ success: false, message: "Not authorized" });
+      // Clean up temp file
+      fs.unlinkSync(req.file.path);
+      res.status(403).json({
+        success: false,
+        message: "Not authorized",
+      });
       return;
     }
 
     const user = await User.findById(id);
     if (!user) {
-      res.status(404).json({ success: false, message: "User not found" });
-      return;
-    }
-
-    // Initialize update object
-    const updates: any = {};
-
-    // Handle bio update
-    if (req.body.bio !== undefined) {
-      updates.bio = req.body.bio;
-    }
-
-    // Handle image update if new file was uploaded
-    if (req.file) {
-      // Upload new image
-      const { secure_url, public_id } = await pictureUpload(
-        req.file.path,
-        "profile-pictures"
-      );
-
-      // Delete old image if it exists
-      if (user.profilePicturePublicId) {
-        await pictureDelete(user.profilePicturePublicId);
-      }
-
-      // Update image fields
-      updates.profilePicture = secure_url;
-      updates.profilePicturePublicId = public_id;
-
-      // Clean up temp file
       fs.unlinkSync(req.file.path);
-    }
-
-    // Apply updates
-    const updatedUser = await User.findByIdAndUpdate(id, updates, {
-      new: true,
-    });
-
-    if (!updatedUser) {
       res.status(404).json({
         success: false,
         message: "User not found",
@@ -317,22 +293,48 @@ export const updateProfilePicture = async (req: Request, res: Response) => {
       return;
     }
 
+    // Upload to Cloudinary
+    const { secure_url, public_id } = await pictureUpload(
+      req.file.path,
+      "profile-pictures"
+    );
+
+    // Delete old image if exists
+    if (user.profilePicturePublicId) {
+      await pictureDelete(user.profilePicturePublicId);
+    }
+
+    // Update user
+    const updatedUser = await User.findByIdAndUpdate(
+      id,
+      {
+        profilePicture: secure_url,
+        profilePicturePublicId: public_id,
+        ...(bio && { bio }), // Only update bio if provided
+      },
+      { new: true }
+    ).select("-password");
+
+    // Clean up temp file
+    fs.unlinkSync(req.file.path);
+
     res.status(200).json({
       success: true,
-      user: {
-        _id: updatedUser._id,
-        username: updatedUser.username,
-        email: updatedUser.email,
-        profilePicture: updatedUser.profilePicture,
-        bio: updatedUser.bio,
-        createdAt: updatedUser.createdAt,
-      },
+      user: updatedUser,
     });
+    return;
   } catch (error) {
-    console.error("Error updating profile:", error);
+    console.error("Profile update error:", error);
+
+    // Clean up temp file if it exists
+    if (req.file?.path && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+
     res.status(500).json({
       success: false,
-      message: error instanceof Error ? error.message : "Server Error",
+      message: error instanceof Error ? error.message : "Profile update failed",
     });
+    return;
   }
 };
