@@ -23,19 +23,16 @@ export function useProfileEditing(user: User | null) {
   ) => {
     try {
       setLoading(true);
-      setError("");
       const token = localStorage.getItem("token");
       if (!token) throw new Error("Not authenticated");
 
       const formData = new FormData();
-
-      // Only append if file exists
       if (profilePictureFile) {
         formData.append("image", profilePictureFile);
       }
-
-      // Always append bio if it exists (even empty string to clear bio)
-      formData.append("bio", bio);
+      if (bio !== undefined) {
+        formData.append("bio", bio);
+      }
 
       const response = await fetch(API_ENDPOINTS.AUTH.UPDATE_PROFILE(id), {
         method: "PUT",
@@ -50,17 +47,16 @@ export function useProfileEditing(user: User | null) {
         throw new Error(errorData.message || "Failed to update profile");
       }
 
-      const data = await response.json();
+      const { user: updatedUser } = await response.json();
       setIsEditing(false);
       setPreviewUrl(null);
 
       updateUser({
-        ...user,
-        profilePicture: data.user?.profilePicture || user?.profilePicture,
-        bio: data.user?.bio || bio,
+        profilePicture: updatedUser.profilePicture,
+        bio: updatedUser.bio,
       });
 
-      return data.user;
+      return updatedUser;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update profile");
       throw err;
