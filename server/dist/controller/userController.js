@@ -242,56 +242,77 @@ const login = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
 });
 exports.login = login;
 const updateProfilePicture = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _a, _b;
     try {
-        if (!req.file) {
-            res.status(400).json({
-                success: false,
-                message: "No image file provided",
-            });
-            return;
-        }
         const { id } = req.params;
         const { bio } = req.body;
-        // Verify user authorization
+        // Verify authorization
         if (!req.user || req.user._id.toString() !== id) {
-            // Clean up temp file
-            fs_1.default.unlinkSync(req.file.path);
-            res.status(403).json({
-                success: false,
-                message: "Not authorized",
-            });
+            res.status(403).json({ success: false, message: "Not authorized" });
             return;
         }
         const user = yield usersModel_1.default.findById(id);
         if (!user) {
-            fs_1.default.unlinkSync(req.file.path);
-            res.status(404).json({
+            res.status(404).json({ success: false, message: "User not found" });
+            return;
+        }
+        const updates = {};
+        // Handle bio update if provided
+        if (bio !== undefined) {
+            updates.bio = bio;
+        }
+        // Handle image update if provided
+        if (req.file) {
+            try {
+                const { secure_url, public_id } = yield (0, cloudinaryUpload_1.pictureUpload)(req.file.path, "profile-pictures");
+                // Delete old image if exists
+                if (user.profilePicturePublicId) {
+                    yield (0, cloudinaryDelete_1.pictureDelete)(user.profilePicturePublicId);
+                }
+                updates.profilePicture = secure_url;
+                updates.profilePicturePublicId = public_id;
+                // Clean up temp file
+                fs_1.default.unlinkSync(req.file.path);
+            }
+            catch (uploadError) {
+                console.error("Cloudinary upload error:", uploadError);
+                if ((_a = req.file) === null || _a === void 0 ? void 0 : _a.path)
+                    fs_1.default.unlinkSync(req.file.path);
+                res.status(500).json({
+                    success: false,
+                    message: "Failed to upload image",
+                });
+            }
+            return;
+        }
+        // Only update if there are changes
+        if (Object.keys(updates).length === 0) {
+            res.status(400).json({
                 success: false,
-                message: "User not found",
+                message: "No updates provided",
             });
             return;
         }
-        // Upload to Cloudinary
-        const { secure_url, public_id } = yield (0, cloudinaryUpload_1.pictureUpload)(req.file.path, "profile-pictures");
-        // Delete old image if exists
-        if (user.profilePicturePublicId) {
-            yield (0, cloudinaryDelete_1.pictureDelete)(user.profilePicturePublicId);
-        }
-        // Update user
-        const updatedUser = yield usersModel_1.default.findByIdAndUpdate(id, Object.assign({ profilePicture: secure_url, profilePicturePublicId: public_id }, (bio && { bio })), { new: true }).select("-password");
-        // Clean up temp file
-        fs_1.default.unlinkSync(req.file.path);
+        const updatedUser = yield usersModel_1.default.findByIdAndUpdate(id, updates, {
+            new: true,
+        }).select("-password");
         res.status(200).json({
             success: true,
-            user: updatedUser,
+            user: {
+                _id: updatedUser._id,
+                username: updatedUser.username,
+                email: updatedUser.email,
+                profilePicture: updatedUser.profilePicture,
+                bio: updatedUser.bio,
+                createdAt: updatedUser.createdAt,
+            },
         });
         return;
     }
     catch (error) {
         console.error("Profile update error:", error);
-        // Clean up temp file if it exists
-        if (((_a = req.file) === null || _a === void 0 ? void 0 : _a.path) && fs_1.default.existsSync(req.file.path)) {
+        // Clean up temp file if exists
+        if (((_b = req.file) === null || _b === void 0 ? void 0 : _b.path) && fs_1.default.existsSync(req.file.path)) {
             fs_1.default.unlinkSync(req.file.path);
         }
         res.status(500).json({
