@@ -242,81 +242,69 @@ const login = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
 });
 exports.login = login;
 const updateProfilePicture = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b, _c, _d;
+    var _a;
     try {
         const { id } = req.params;
-        const bio = req.body.bio;
-        // Verify authorization
+        const { bio } = req.body;
+        if (!req.file && !bio) {
+            res.status(400).json({
+                success: false,
+                message: "No data provided to update",
+            });
+            return;
+        }
+        // Verify user authorization
         if (!req.user || req.user._id.toString() !== id) {
-            if ((_a = req.file) === null || _a === void 0 ? void 0 : _a.path)
+            if (req.file)
                 fs_1.default.unlinkSync(req.file.path);
-            res.status(403).json({ success: false, message: "Not authorized" });
+            res.status(403).json({
+                success: false,
+                message: "Not authorized",
+            });
             return;
         }
         const user = yield usersModel_1.default.findById(id);
         if (!user) {
-            if ((_b = req.file) === null || _b === void 0 ? void 0 : _b.path)
+            if (req.file)
                 fs_1.default.unlinkSync(req.file.path);
-            res.status(404).json({ success: false, message: "User not found" });
+            res.status(404).json({
+                success: false,
+                message: "User not found",
+            });
             return;
         }
-        const updates = {};
-        // Handle bio update if provided (even if empty string)
-        if (bio !== undefined) {
-            updates.bio = bio;
-        }
-        // Handle image update if provided
+        let updateFields = {};
         if (req.file) {
-            try {
-                const { secure_url, public_id } = yield (0, cloudinaryUpload_1.pictureUpload)(req.file.path, "profile-pictures");
-                // Delete old image if exists
-                if (user.profilePicturePublicId) {
-                    yield (0, cloudinaryDelete_1.pictureDelete)(user.profilePicturePublicId);
-                }
-                updates.profilePicture = secure_url;
-                updates.profilePicturePublicId = public_id;
-                // Clean up temp file
-                fs_1.default.unlinkSync(req.file.path);
+            const { secure_url, public_id } = yield (0, cloudinaryUpload_1.pictureUpload)(req.file.path, "profile-pictures");
+            if (user.profilePicturePublicId) {
+                yield (0, cloudinaryDelete_1.pictureDelete)(user.profilePicturePublicId);
             }
-            catch (uploadError) {
-                console.error("Cloudinary upload error:", uploadError);
-                if ((_c = req.file) === null || _c === void 0 ? void 0 : _c.path)
-                    fs_1.default.unlinkSync(req.file.path);
-                res.status(500).json({
-                    success: false,
-                    message: "Failed to upload image",
-                });
-            }
-            return;
+            updateFields.profilePicture = secure_url;
+            updateFields.profilePicturePublicId = public_id;
+            fs_1.default.unlinkSync(req.file.path);
         }
-        // Update user if there are changes
-        const updatedUser = yield usersModel_1.default.findByIdAndUpdate(id, updates, {
+        if (bio) {
+            updateFields.bio = bio;
+        }
+        const updatedUser = yield usersModel_1.default.findByIdAndUpdate(id, updateFields, {
             new: true,
         }).select("-password");
         res.status(200).json({
             success: true,
-            user: {
-                _id: updatedUser._id,
-                username: updatedUser.username,
-                email: updatedUser.email,
-                profilePicture: updatedUser.profilePicture || user.profilePicture,
-                bio: updatedUser.bio,
-                createdAt: updatedUser.createdAt,
-            },
+            user: updatedUser,
         });
         return;
     }
     catch (error) {
         console.error("Profile update error:", error);
-        // Clean up temp file if exists
-        if (((_d = req.file) === null || _d === void 0 ? void 0 : _d.path) && fs_1.default.existsSync(req.file.path)) {
+        if (((_a = req.file) === null || _a === void 0 ? void 0 : _a.path) && fs_1.default.existsSync(req.file.path)) {
             fs_1.default.unlinkSync(req.file.path);
         }
         res.status(500).json({
             success: false,
             message: error instanceof Error ? error.message : "Profile update failed",
         });
+        return;
     }
-    return;
 });
 exports.updateProfilePicture = updateProfilePicture;

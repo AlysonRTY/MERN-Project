@@ -262,79 +262,69 @@ export const login = async (req: Request, res: Response) => {
 export const updateProfilePicture = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const bio = req.body.bio;
+    const { bio } = req.body;
 
-    // Verify authorization
+    if (!req.file && !bio) {
+      res.status(400).json({
+        success: false,
+        message: "No data provided to update",
+      });
+      return;
+    }
+
+    // Verify user authorization
     if (!req.user || req.user._id.toString() !== id) {
-      if (req.file?.path) fs.unlinkSync(req.file.path);
-      res.status(403).json({ success: false, message: "Not authorized" });
+      if (req.file) fs.unlinkSync(req.file.path);
+      res.status(403).json({
+        success: false,
+        message: "Not authorized",
+      });
       return;
     }
 
     const user = await User.findById(id);
     if (!user) {
-      if (req.file?.path) fs.unlinkSync(req.file.path);
-      res.status(404).json({ success: false, message: "User not found" });
+      if (req.file) fs.unlinkSync(req.file.path);
+      res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
       return;
     }
 
-    const updates: any = {};
-
-    // Handle bio update if provided (even if empty string)
-    if (bio !== undefined) {
-      updates.bio = bio;
-    }
-
-    // Handle image update if provided
+    let updateFields: Record<string, any> = {};
     if (req.file) {
-      try {
-        const { secure_url, public_id } = await pictureUpload(
-          req.file.path,
-          "profile-pictures"
-        );
+      const { secure_url, public_id } = await pictureUpload(
+        req.file.path,
+        "profile-pictures"
+      );
 
-        // Delete old image if exists
-        if (user.profilePicturePublicId) {
-          await pictureDelete(user.profilePicturePublicId);
-        }
-
-        updates.profilePicture = secure_url;
-        updates.profilePicturePublicId = public_id;
-
-        // Clean up temp file
-        fs.unlinkSync(req.file.path);
-      } catch (uploadError) {
-        console.error("Cloudinary upload error:", uploadError);
-        if (req.file?.path) fs.unlinkSync(req.file.path);
-        res.status(500).json({
-          success: false,
-          message: "Failed to upload image",
-        });
+      if (user.profilePicturePublicId) {
+        await pictureDelete(user.profilePicturePublicId);
       }
-      return;
+
+      updateFields.profilePicture = secure_url;
+      updateFields.profilePicturePublicId = public_id;
+
+      fs.unlinkSync(req.file.path);
     }
 
-    // Update user if there are changes
-    const updatedUser = await User.findByIdAndUpdate(id, updates, {
+    if (bio) {
+      updateFields.bio = bio;
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(id, updateFields, {
       new: true,
     }).select("-password");
 
     res.status(200).json({
       success: true,
-      user: {
-        _id: updatedUser!._id,
-        username: updatedUser!.username,
-        email: updatedUser!.email,
-        profilePicture: updatedUser!.profilePicture || user.profilePicture,
-        bio: updatedUser!.bio,
-        createdAt: updatedUser!.createdAt,
-      },
+      user: updatedUser,
     });
     return;
   } catch (error) {
     console.error("Profile update error:", error);
 
-    // Clean up temp file if exists
     if (req.file?.path && fs.existsSync(req.file.path)) {
       fs.unlinkSync(req.file.path);
     }
@@ -343,6 +333,6 @@ export const updateProfilePicture = async (req: Request, res: Response) => {
       success: false,
       message: error instanceof Error ? error.message : "Profile update failed",
     });
+    return;
   }
-  return;
 };
