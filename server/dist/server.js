@@ -18,6 +18,9 @@ const cors_1 = __importDefault(require("cors"));
 const mongoose_1 = __importDefault(require("mongoose"));
 const body_parser_1 = __importDefault(require("body-parser"));
 const cloudinaryConfiguration_1 = __importDefault(require("./config/cloudinaryConfiguration"));
+const user_1 = __importDefault(require("./routes/user"));
+const ducks_1 = __importDefault(require("./routes/ducks"));
+const comments_1 = __importDefault(require("./routes/comments"));
 dotenv_1.default.config();
 // Initialize Cloudinary first
 (0, cloudinaryConfiguration_1.default)();
@@ -46,9 +49,9 @@ const DBConnection = () => __awaiter(void 0, void 0, void 0, function* () {
     app.use(express_1.default.urlencoded({ extended: true }));
     app.use(body_parser_1.default.json());
     // Routes
-    app.use("/api/ducks", require("./routes/ducks"));
-    app.use("/api/user", require("./routes/user"));
-    app.use("/api/comments", require("./routes/comments"));
+    app.use("/api/ducks", ducks_1.default);
+    app.use("/api/user", user_1.default);
+    app.use("/api/comments", comments_1.default);
     // Error handling middleware
     app.use((err, req, res, next) => {
         console.error("Server error:", err);

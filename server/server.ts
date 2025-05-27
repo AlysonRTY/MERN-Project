@@ -4,6 +4,9 @@ import cors from "cors";
 import mongoose from "mongoose";
 import bodyParser from "body-parser";
 import cloudinaryConfig from "./config/cloudinaryConfiguration";
+import userRouter from "./routes/user";
+import duckRouter from "./routes/ducks";
+import commentRouter from "./routes/comments";
 
 dotenv.config();
 
@@ -38,9 +41,9 @@ const DBConnection = async () => {
   app.use(bodyParser.json());
 
   // Routes
-  app.use("/api/ducks", require("./routes/ducks"));
-  app.use("/api/user", require("./routes/user"));
-  app.use("/api/comments", require("./routes/comments"));
+  app.use("/api/ducks", duckRouter);
+  app.use("/api/user", userRouter);
+  app.use("/api/comments", commentRouter);
 
   // Error handling middleware
   app.use((err: any, req: any, res: any, next: any) => {
