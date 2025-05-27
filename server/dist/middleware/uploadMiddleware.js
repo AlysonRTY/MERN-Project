@@ -6,19 +6,32 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const multer_1 = __importDefault(require("multer"));
 const path_1 = __importDefault(require("path"));
 // uploads directory exists
-const uploadDir = path_1.default.join(__dirname, "/tmp");
+const uploadDir = "/tmp";
 // if (!fs.existsSync(uploadDir)) {
 //   fs.mkdirSync(uploadDir, { recursive: true });
 // }
 const storage = multer_1.default.diskStorage({
-    destination: (req, file, cb) => {
+    destination: (_req, _file, cb) => {
         cb(null, uploadDir);
     },
-    filename: (req, file, cb) => {
-        cb(null, `image-${Date.now()}-${Math.round(Math.random() * 1e9)}${path_1.default.extname(file.originalname)}`);
+    filename: (_req, file, cb) => {
+        const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+        cb(null, `upload-${uniqueSuffix}${path_1.default.extname(file.originalname)}`);
     },
 });
+const fileFilter = (_req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) {
+        cb(null, true);
+    }
+    else {
+        cb(new Error("Only image files are allowed!"), false);
+    }
+};
 exports.default = (0, multer_1.default)({
     storage,
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+    fileFilter,
+    limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB
+        files: 1,
+    },
 });

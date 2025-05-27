@@ -242,67 +242,63 @@ const login = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
 });
 exports.login = login;
 const updateProfilePicture = (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     try {
+        if (!req.file) {
+            res.status(400).json({
+                success: false,
+                message: "No image file provided",
+            });
+            return;
+        }
         const { id } = req.params;
-        // Verify the user is updating their own profile
+        const { bio } = req.body;
+        // Verify user authorization
         if (!req.user || req.user._id.toString() !== id) {
-            res.status(403).json({ success: false, message: "Not authorized" });
+            // Clean up temp file
+            fs_1.default.unlinkSync(req.file.path);
+            res.status(403).json({
+                success: false,
+                message: "Not authorized",
+            });
             return;
         }
         const user = yield usersModel_1.default.findById(id);
         if (!user) {
-            res.status(404).json({ success: false, message: "User not found" });
-            return;
-        }
-        // Initialize update object
-        const updates = {};
-        // Handle bio update
-        if (req.body.bio !== undefined) {
-            updates.bio = req.body.bio;
-        }
-        // Handle image update if new file was uploaded
-        if (req.file) {
-            // Upload new image
-            const { secure_url, public_id } = yield (0, cloudinaryUpload_1.pictureUpload)(req.file.path, "profile-pictures");
-            // Delete old image if it exists
-            if (user.profilePicturePublicId) {
-                yield (0, cloudinaryDelete_1.pictureDelete)(user.profilePicturePublicId);
-            }
-            // Update image fields
-            updates.profilePicture = secure_url;
-            updates.profilePicturePublicId = public_id;
-            // Clean up temp file
             fs_1.default.unlinkSync(req.file.path);
-        }
-        // Apply updates
-        const updatedUser = yield usersModel_1.default.findByIdAndUpdate(id, updates, {
-            new: true,
-        });
-        if (!updatedUser) {
             res.status(404).json({
                 success: false,
                 message: "User not found",
             });
             return;
         }
+        // Upload to Cloudinary
+        const { secure_url, public_id } = yield (0, cloudinaryUpload_1.pictureUpload)(req.file.path, "profile-pictures");
+        // Delete old image if exists
+        if (user.profilePicturePublicId) {
+            yield (0, cloudinaryDelete_1.pictureDelete)(user.profilePicturePublicId);
+        }
+        // Update user
+        const updatedUser = yield usersModel_1.default.findByIdAndUpdate(id, Object.assign({ profilePicture: secure_url, profilePicturePublicId: public_id }, (bio && { bio })), { new: true }).select("-password");
+        // Clean up temp file
+        fs_1.default.unlinkSync(req.file.path);
         res.status(200).json({
             success: true,
-            user: {
-                _id: updatedUser._id,
-                username: updatedUser.username,
-                email: updatedUser.email,
-                profilePicture: updatedUser.profilePicture,
-                bio: updatedUser.bio,
-                createdAt: updatedUser.createdAt,
-            },
+            user: updatedUser,
         });
+        return;
     }
     catch (error) {
-        console.error("Error updating profile:", error);
+        console.error("Profile update error:", error);
+        // Clean up temp file if it exists
+        if (((_a = req.file) === null || _a === void 0 ? void 0 : _a.path) && fs_1.default.existsSync(req.file.path)) {
+            fs_1.default.unlinkSync(req.file.path);
+        }
         res.status(500).json({
             success: false,
-            message: error instanceof Error ? error.message : "Server Error",
+            message: error instanceof Error ? error.message : "Profile update failed",
         });
+        return;
     }
 });
 exports.updateProfilePicture = updateProfilePicture;
