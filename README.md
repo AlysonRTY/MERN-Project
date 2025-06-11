@@ -1,6 +1,8 @@
 # 🦆 Waddle Wonderland - A Duck Lover's Paradise 🦆
 
-![Waddle Wonderland Banner](./client/WW_ICON.png)
+<div align="center">
+  <img src="./client/WW_ICON.png" alt="Waddle Wonderland Banner" width="800">
+</div>
 
 Welcome to **Waddle Wonderland**, the ultimate social platform for duck enthusiasts! Share your favorite quack-tastic moments, connect with fellow duck lovers, and dive into a world where every day is a ducky day. [Visit Waddle Wonderland](https://waddle-wonderland.vercel.app)
 
