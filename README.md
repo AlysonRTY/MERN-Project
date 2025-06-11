@@ -4,9 +4,16 @@
   <img src="./client/WW_ICON.png" alt="Waddle Wonderland Banner" width="500">
 </div>
 
-<p align="center">
-Welcome to **Waddle Wonderland**, the ultimate social platform for duck enthusiasts! Share your favorite quack-tastic moments, connect with fellow duck lovers, and dive into a world where every day is a ducky day. [Visit Waddle Wonderland](https://waddle-wonderland.vercel.app)
-</p>
+<div align="center">
+
+### Welcome to **Waddle Wonderland**, the ultimate social platform for duck enthusiasts!
+
+Share your favorite quack-tastic moments, connect with fellow duck lovers,  
+and dive into a world where every day is a ducky day.
+
+[🦆 Visit Waddle Wonderland 🦆](https://waddle-wonderland.vercel.app)
+
+</div>
 
 ## 🌟 Features
 
