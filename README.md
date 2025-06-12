@@ -1,4 +1,4 @@
-# 🦆 Waddle Wonderland - A Duck Lover's Paradise 🦆
+# 🦆 Waddle Wonderland 🦆
 
 <div align="center">
   <img src="./client/WW_ICON.png" alt="Waddle Wonderland Banner" width="500">
