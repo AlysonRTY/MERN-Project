@@ -1,4 +1,8 @@
+<div align="center">
+
 # 🦆 Waddle Wonderland 🦆
+
+</div>
 
 <div align="center">
   <img src="./client/WW_ICON.png" alt="Waddle Wonderland Banner" width="500">
